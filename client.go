@@ -1,8 +1,11 @@
 package godoo
 
 import (
+	"context"
 	"errors"
 	"log"
+	"net"
+	"net/http"
 
 	"github.com/kolo/xmlrpc"
 )
@@ -19,6 +22,7 @@ type ClientConfig struct {
 	Admin    string
 	Password string
 	URL      string
+	Pool     *Pool
 }
 
 func (c *ClientConfig) valid() bool {
@@ -42,6 +46,7 @@ func NewClient(cfg *ClientConfig) (*Client, error) {
 	if !cfg.valid() {
 		return nil, errClientConfigurationInvalid
 	}
+
 	c := &Client{
 		cfg:    cfg,
 		common: &xmlrpc.Client{},
@@ -329,7 +334,19 @@ func (c *Client) loadObjectClient() error {
 
 func (c *Client) loadXmlrpcClient(x *xmlrpc.Client, path string) error {
 	if x.Client == nil {
-		newClient, err := xmlrpc.NewClient(c.cfg.URL+path, nil)
+		transport := &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := c.cfg.Pool.Get(ctx, addr)
+				if err != nil {
+					return nil, err
+				}
+				return conn, nil
+			},
+			MaxIdleConns:        c.cfg.Pool.maximalIdle,
+			MaxIdleConnsPerHost: c.cfg.Pool.maxHosts,
+		}
+
+		newClient, err := xmlrpc.NewClient(c.cfg.URL+path, transport)
 		if err != nil {
 			return err
 		}

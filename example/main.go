@@ -2,20 +2,25 @@ package main
 
 import (
 	"log"
+	"time"
 
 	odoo "repo.nusatek.id/sugeng/godoo"
 )
 
 func main() {
+	pool := odoo.NewPool(10, 5, 1*time.Minute)
+
 	c, err := odoo.NewClient(&odoo.ClientConfig{
 		Database: "beta",
 		Admin:    "admin",
 		Password: "admin",
 		URL:      "https://beta.propertek.id",
+		Pool:     pool,
 	})
 	if err != nil {
 		log.Printf("Error creating client: %v", err)
 	}
+	defer c.Close()
 
 	v, err := c.Version()
 	if err != nil {
@@ -27,6 +32,11 @@ func main() {
 	i, _ := c.Count("note.note", odoo.NewCriteria(), &odoo.Options{})
 
 	log.Println(i)
-}
 
-// 78a6d15e2b85b63b985d46cf5a8ee091f73c6cd3
+	k, err := c.ExecuteKw("get_units", "propertek.property.unit", []interface{}{1, 0}, nil)
+	if err != nil {
+		log.Printf("error getting units: %v", err)
+	}
+
+	log.Println(k)
+}
