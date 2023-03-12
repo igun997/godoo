@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/kolo/xmlrpc"
 )
@@ -344,6 +345,7 @@ func (c *Client) loadXmlrpcClient(x *xmlrpc.Client, path string) error {
 			},
 			MaxIdleConns:        c.cfg.Pool.maximalIdle,
 			MaxIdleConnsPerHost: c.cfg.Pool.maxHosts,
+			IdleConnTimeout:     5 * time.Minute,
 		}
 
 		newClient, err := xmlrpc.NewClient(c.cfg.URL+path, transport)
