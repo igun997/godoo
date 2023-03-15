@@ -93,13 +93,13 @@ func (c *Client) Version() (Version, error) {
 	return v, nil
 }
 
-func (c *Client) Ping() string {
-	v, err := c.Version()
+func (c *Client) Ping() error {
+	_, err := c.Version()
 	if err != nil {
-		return ""
+		return err
 	}
 
-	return v.ServerVersion.v
+	return nil
 }
 
 type criterion []interface{}
