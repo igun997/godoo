@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/kolo/xmlrpc"
 )
@@ -60,6 +59,14 @@ func NewClient(cfg *ClientConfig) (*Client, error) {
 	return c, nil
 }
 
+func (c *Client) Config() *ClientConfig {
+	if c.cfg != nil {
+		return &ClientConfig{}
+	}
+
+	return c.cfg
+}
+
 // Close closes all opened client connections.
 func (c *Client) Close() {
 	defer func() {
@@ -84,6 +91,15 @@ func (c *Client) Version() (Version, error) {
 	}
 	convertFromDynamicToStatic(reply, &v)
 	return v, nil
+}
+
+func (c *Client) Ping() string {
+	v, err := c.Version()
+	if err != nil {
+		return ""
+	}
+
+	return v.ServerVersion.v
 }
 
 type criterion []interface{}
@@ -345,7 +361,7 @@ func (c *Client) loadXmlrpcClient(x *xmlrpc.Client, path string) error {
 			},
 			MaxIdleConns:        c.cfg.Pool.maximalIdle,
 			MaxIdleConnsPerHost: c.cfg.Pool.maxHosts,
-			IdleConnTimeout:     5 * time.Minute,
+			IdleConnTimeout:     0,
 		}
 
 		newClient, err := xmlrpc.NewClient(c.cfg.URL+path, transport)

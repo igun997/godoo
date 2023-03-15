@@ -7,6 +7,10 @@ import (
 	odoo "repo.nusatek.id/sugeng/godoo"
 )
 
+type Unit struct {
+	Name *odoo.String `xmlrpc:"name"`
+}
+
 func main() {
 	pool := odoo.NewPool(10, 5, 1*time.Minute)
 
@@ -29,14 +33,11 @@ func main() {
 
 	log.Printf("data version %v", v.ProtocolVersion)
 
-	i, _ := c.Count("note.note", odoo.NewCriteria(), &odoo.Options{})
+	resp := []Unit{}
 
-	log.Println(i)
-
-	k, err := c.ExecuteKw("get_units", "propertek.property.unit", []interface{}{1, 0}, nil)
-	if err != nil {
+	if err := c.Read("propertek.property.unit", []int64{1}, nil, &resp); err != nil {
 		log.Printf("error getting units: %v", err)
 	}
 
-	log.Println(k)
+	log.Println(resp)
 }
