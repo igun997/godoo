@@ -2,6 +2,7 @@ package godoo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net"
@@ -294,6 +295,15 @@ func (c *Client) ExecuteKw(method, model string, args []interface{}, options *Op
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (c *Client) ExecuteKwByte(method, model string, args []interface{}, options *Options) ([]byte, error) {
+	resp, err := c.ExecuteKw(method, model, args, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(resp)
 }
 
 func (c *Client) authenticate() error {
