@@ -25,15 +25,21 @@ type Pool struct {
 
 	// Duration after which an idle connection is closed.
 	idleTimeout time.Duration
+
+	// stop channel for closing the pool
+	stop chan struct{}
 }
 
 func NewPool(maximalIdle, maxHosts int, idleTimeout time.Duration) *Pool {
-	return &Pool{
+	p := &Pool{
 		conns:       make(map[string][]idleConn),
 		maximalIdle: maximalIdle,
 		maxHosts:    maxHosts,
 		idleTimeout: idleTimeout,
+		stop:        make(chan struct{}),
 	}
+	go p.run()
+	return p
 }
 
 func (p *Pool) Get(ctx context.Context, host string) (net.Conn, error) {
@@ -47,7 +53,7 @@ func (p *Pool) Get(ctx context.Context, host string) (net.Conn, error) {
 		return conn, nil
 	}
 
-	if len(p.conns) >= p.maxHosts {
+	if _, ok := p.conns[host]; !ok && len(p.conns) >= p.maxHosts {
 		return nil, fmt.Errorf("maximum number of hosts reached")
 	}
 
@@ -79,15 +85,41 @@ func (p *Pool) CloseExpired() {
 	defer p.mu.Unlock()
 
 	for host, conns := range p.conns {
-		for i := 0; i < len(conns); {
-			if time.Since(conns[i].t) > p.idleTimeout {
-				conns[i].conn.Close()
-				copy(conns[i:], conns[i+1:])
-				conns = conns[:len(conns)-1]
+		var unexpired []idleConn
+		for _, c := range conns {
+			if time.Since(c.t) > p.idleTimeout {
+				c.conn.Close()
 			} else {
-				i++
+				unexpired = append(unexpired, c)
 			}
 		}
+		p.conns[host] = unexpired
 		p.conns[host] = conns
+	}
+}
+
+func (p *Pool) run() {
+	ticker := time.NewTicker(p.idleTimeout)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			p.CloseExpired()
+		case <-p.stop:
+			return
+		}
+	}
+}
+
+func (p *Pool) Close() {
+	close(p.stop)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, conns := range p.conns {
+		for _, c := range conns {
+			c.conn.Close()
+		}
 	}
 }

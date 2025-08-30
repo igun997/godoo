@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	odoo "repo.nusatek.id/sugeng/godoo"
+	odoo "github.com/wongpinter/godoo"
 )
 
 type Unit struct {
@@ -15,10 +15,10 @@ func main() {
 	pool := odoo.NewPool(10, 5, 1*time.Minute)
 
 	c, err := odoo.NewClient(&odoo.ClientConfig{
-		Database: "beta",
+		Database: "your-database",
 		Admin:    "admin",
-		Password: "admin",
-		URL:      "https://beta.propertek.id",
+		Password: "your-password",
+		URL:      "https://your-odoo-instance.com",
 		Pool:     pool,
 	})
 	if err != nil {

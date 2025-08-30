@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"net"
 	"net/http"
 
@@ -61,20 +60,14 @@ func NewClient(cfg *ClientConfig) (*Client, error) {
 }
 
 func (c *Client) Config() *ClientConfig {
-	if c.cfg != nil {
+	if c.cfg == nil {
 		return &ClientConfig{}
 	}
-
 	return c.cfg
 }
 
 // Close closes all opened client connections.
 func (c *Client) Close() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Print("connections were already closed")
-		}
-	}()
 	if c.common != nil {
 		c.common.Close()
 	}
@@ -279,7 +272,7 @@ func (c *Client) Search(model string, criteria *Criteria, options *Options) ([]i
 func (c *Client) FieldsGet(model string, options *Options) (map[string]interface{}, error) {
 	resp, err := c.ExecuteKw("fields_get", model, nil, options)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	return resp.(map[string]interface{}), nil
 }

@@ -1,4 +1,4 @@
-module repo.nusatek.id/sugeng/godoo
+module github.com/wongpinter/godoo
 
 go 1.20
 

@@ -23,9 +23,10 @@ func convertFromStaticToDynamic(static interface{}) map[string]interface{} {
 		if field.IsNil() {
 			continue
 		}
-		key, _ := st.Field(i).Tag.Lookup(tagName)
-		if dynamicValue := convertFromStaticToDynamicValue(field.Interface()); dynamicValue != nil {
-			dynamic[strings.Split(key, ",")[0]] = dynamicValue
+		if key, ok := st.Field(i).Tag.Lookup(tagName); ok {
+			if dynamicValue := convertFromStaticToDynamicValue(field.Interface()); dynamicValue != nil {
+				dynamic[strings.Split(key, ",")[0]] = dynamicValue
+			}
 		}
 	}
 	return dynamic
@@ -125,7 +126,10 @@ func convertFromDynamicToStaticValue(staticType reflect.Type, dynamicValue inter
 			t, _ := time.Parse(format, dynamicValue.(string))
 			staticValue = NewTime(t)
 		case "Many2One":
-			staticValue = NewMany2One(dynamicValue.([]interface{})[0].(int64), dynamicValue.([]interface{})[1].(string))
+			tuple := dynamicValue.([]interface{})
+			if len(tuple) == 2 {
+				staticValue = NewMany2One(tuple[0].(int64), tuple[1].(string))
+			}
 		case "Relation":
 			staticValue = NewRelation()
 			staticValue.(*Relation).ids = sliceInterfaceToInt64Slice(dynamicValue.([]interface{}))
