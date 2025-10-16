@@ -1,17 +1,19 @@
-# Godoo - Odoo XML-RPC Client for Go
+# Godoo - Odoo RPC Client for Go
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/wongpinter/godoo)](https://goreportcard.com/report/github.com/wongpinter/godoo)
 [![GoDoc](https://godoc.org/github.com/wongpinter/godoo?status.svg)](https://godoc.org/github.com/wongpinter/godoo)
 
-Godoo is a Go library that provides a wrapper around the Odoo XML-RPC API, making it easier to interact with Odoo from your Go applications.
+Godoo is a Go library that provides a wrapper around the Odoo RPC API, supporting both JSON-RPC and XML-RPC protocols, making it easier to interact with Odoo from your Go applications. **JSON-RPC is now the default protocol** for compatibility with modern Odoo versions.
 
 ## Features
 
+- Support for both JSON-RPC (default) and XML-RPC protocols
 - Connection pooling to efficiently manage connections to your Odoo instance.
 - A simple and intuitive API for calling Odoo methods.
 - Type-safe wrappers for common Odoo data types.
-- Automatic handling of authentication.
+- Automatic handling of authentication for both protocols.
 - Robust connection management with automatic reconnection.
+- Full compatibility with modern Odoo versions
 
 ## Installation
 
@@ -23,10 +25,11 @@ go get github.com/wongpinter/godoo
 
 ## Usage
 
-This project includes two examples in the `examples` directory:
+This project includes three examples in the `examples` directory:
 
-1.  **`single_client`**: A simple example demonstrating how to connect to a single Odoo instance and read data.
-2.  **`rpc_pool`**: A more advanced example showing how to use the connection pool to manage connections to multiple Odoo instances, including automatic reconnection.
+1.  **`single_client`**: A simple example demonstrating how to connect to a single Odoo instance using JSON-RPC (default) and read data.
+2.  **`jsonrpc_client`**: An example showing how to explicitly use JSON-RPC protocol to connect to Odoo.
+3.  **`rpc_pool`**: A more advanced example showing how to use the connection pool to manage connections to multiple Odoo instances using JSON-RPC, including automatic reconnection.
 
 ### Single Client Example
 
@@ -37,7 +40,7 @@ cd examples/single_client
 go run main.go
 ```
 
-Here is the code from `examples/single_client/main.go`:
+Here is the code from `examples/single_client/main.go` showing the default JSON-RPC usage:
 
 ```go
 package main
@@ -57,13 +60,14 @@ func main() {
 	// Create a new connection pool.
 	pool := godoo.NewPool(10, 5, 1*time.Minute)
 
-	// Create a new client.
+	// Create a new client (JSON-RPC is used by default).
 	c, err := godoo.NewClient(&godoo.ClientConfig{
 		Database: "your-database",
 		Admin:    "admin",
 		Password: "your-password",
 		URL:      "https://your-odoo-instance.com",
 		Pool:     pool,
+		// Protocol: godoo.ProtocolJSONRPC // This is now the default
 	})
 	if err != nil {
 		log.Fatalf("Error creating client: %v", err)
@@ -86,6 +90,48 @@ func main() {
 
 	log.Printf("Units: %+v", units)
 }
+```
+
+### Protocol Selection
+
+You can choose between JSON-RPC (default) and XML-RPC by setting the `Protocol` field in `ClientConfig`:
+
+```go
+// JSON-RPC (default)
+cfg := &godoo.ClientConfig{
+    Database: "your-database",
+    Admin:    "admin",
+    Password: "your-password",
+    URL:      "https://your-odoo-instance.com",
+    Pool:     pool,
+    // Protocol: godoo.ProtocolJSONRPC // This is the default, can be omitted
+}
+
+// XML-RPC (for legacy Odoo versions)
+cfg := &godoo.ClientConfig{
+    Database: "your-database",
+    Admin:    "admin",
+    Password: "your-password",
+    URL:      "https://your-odoo-instance.com",
+    Pool:     pool,
+    Protocol: godoo.ProtocolXMLRPC,
+}
+```
+
+### XML-RPC Client Example
+
+If you need to use XML-RPC for legacy Odoo versions, you can explicitly specify it:
+
+```go
+// Create a new XML-RPC client.
+c, err := godoo.NewClient(&godoo.ClientConfig{
+    Database: "your-database",
+    Admin:    "admin",
+    Password: "your-password",
+    URL:      "https://your-odoo-instance.com",
+    Pool:     pool,
+    Protocol: godoo.ProtocolXMLRPC, // Explicitly use XML-RPC
+})
 ```
 
 ### RPC Pool Example

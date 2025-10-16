@@ -16,6 +16,14 @@ var (
 	errClientAuthentication       = errors.New("client authentication error: please verify client configuration")
 )
 
+// ProtocolType defines the RPC protocol type
+type ProtocolType string
+
+const (
+	ProtocolXMLRPC ProtocolType = "xmlrpc"
+	ProtocolJSONRPC ProtocolType = "jsonrpc"
+)
+
 // ClientConfig is the configuration to create a new *Client by givin connection infomations.
 type ClientConfig struct {
 	Database string
@@ -23,6 +31,7 @@ type ClientConfig struct {
 	Password string
 	URL      string
 	Pool     *Pool
+	Protocol ProtocolType
 }
 
 func (c *ClientConfig) valid() bool {
@@ -34,11 +43,13 @@ func (c *ClientConfig) valid() bool {
 
 // Client provides high and low level functions to interact with odoo
 type Client struct {
-	common *xmlrpc.Client
-	object *xmlrpc.Client
-	cfg    *ClientConfig
-	uid    int64
-	auth   bool
+	common      *xmlrpc.Client
+	object      *xmlrpc.Client
+	jsonrpc     *JSONRPCClient
+	cfg         *ClientConfig
+	uid         int64
+	auth        bool
+	protocol    ProtocolType
 }
 
 // NewClient creates a new *Client.
@@ -47,12 +58,25 @@ func NewClient(cfg *ClientConfig) (*Client, error) {
 		return nil, errClientConfigurationInvalid
 	}
 
-	c := &Client{
-		cfg:    cfg,
-		common: &xmlrpc.Client{},
-		object: &xmlrpc.Client{},
-		auth:   false,
+	// Default to JSON-RPC if no protocol specified
+	protocol := cfg.Protocol
+	if protocol == "" {
+		protocol = ProtocolJSONRPC
 	}
+
+	c := &Client{
+		cfg:      cfg,
+		common:   &xmlrpc.Client{},
+		object:   &xmlrpc.Client{},
+		auth:     false,
+		protocol: protocol,
+	}
+
+	// Initialize JSON-RPC client if needed
+	if protocol == ProtocolJSONRPC {
+		c.jsonrpc = NewJSONRPCClient(cfg.URL, cfg.Pool)
+	}
+
 	if err := c.authenticate(); err != nil {
 		return nil, err
 	}
@@ -74,16 +98,32 @@ func (c *Client) Close() {
 	if c.object != nil {
 		c.object.Close()
 	}
+	if c.jsonrpc != nil {
+		c.jsonrpc.Close()
+	}
 }
 
 // Version get informations about your odoo instance version.
 func (c *Client) Version() (Version, error) {
 	v := Version{}
-	reply, err := c.commonCall("version", nil)
-	if err != nil {
-		return Version{}, err
+	
+	if c.protocol == ProtocolJSONRPC {
+		resp, err := c.jsonrpc.Call("call", map[string]interface{}{
+			"service": "common",
+			"method":  "version",
+		})
+		if err != nil {
+			return Version{}, err
+		}
+		convertFromDynamicToStatic(resp.Result, &v)
+	} else {
+		reply, err := c.commonCall("version", nil)
+		if err != nil {
+			return Version{}, err
+		}
+		convertFromDynamicToStatic(reply, &v)
 	}
-	convertFromDynamicToStatic(reply, &v)
+	
 	return v, nil
 }
 
@@ -278,12 +318,26 @@ func (c *Client) FieldsGet(model string, options *Options) (map[string]interface
 }
 
 // ExecuteKw is a RPC function. The lowest library function. It is use for all
-// function related to "xmlrpc/2/object" endpoint.
+// function related to object endpoints.
 func (c *Client) ExecuteKw(method, model string, args []interface{}, options *Options) (interface{}, error) {
 	if err := c.checkForAuthentication(); err != nil {
 		return nil, err
 	}
-	resp, err := c.objectCall("execute_kw", []interface{}{c.cfg.Database, c.uid, c.cfg.Password, model, method, args, options})
+	
+	var resp interface{}
+	var err error
+	
+	if c.protocol == ProtocolJSONRPC {
+		// Convert Options to map[string]interface{} for JSON-RPC
+		var kwargs map[string]interface{}
+		if options != nil {
+			kwargs = *options
+		}
+		resp, err = c.jsonrpc.ExecuteKw(c.cfg.Database, c.uid, c.cfg.Password, model, method, args, kwargs)
+	} else {
+		resp, err = c.objectCall("execute_kw", []interface{}{c.cfg.Database, c.uid, c.cfg.Password, model, method, args, options})
+	}
+	
 	if err != nil {
 		return nil, err
 	}
@@ -301,15 +355,24 @@ func (c *Client) ExecuteKwByte(method, model string, args []interface{}, options
 
 func (c *Client) authenticate() error {
 	if !c.isAuthenticate() {
-		resp, err := c.commonCall("authenticate", []interface{}{c.cfg.Database, c.cfg.Admin, c.cfg.Password, ""})
-		if err != nil {
-			return err
+		if c.protocol == ProtocolJSONRPC {
+			err := c.jsonrpc.Authenticate(c.cfg.Database, c.cfg.Admin, c.cfg.Password)
+			if err != nil {
+				return err
+			}
+			c.uid = c.jsonrpc.GetUID()
+			c.auth = true
+		} else {
+			resp, err := c.commonCall("authenticate", []interface{}{c.cfg.Database, c.cfg.Admin, c.cfg.Password, ""})
+			if err != nil {
+				return err
+			}
+			if _, ok := resp.(bool); ok {
+				return errClientAuthentication
+			}
+			c.uid = resp.(int64)
+			c.auth = true
 		}
-		if _, ok := resp.(bool); ok {
-			return errClientAuthentication
-		}
-		c.uid = resp.(int64)
-		c.auth = true
 	}
 	return nil
 }
@@ -385,6 +448,21 @@ func (c *Client) checkForAuthentication() error {
 
 func (c *Client) isAuthenticate() bool {
 	return c.auth
+}
+
+// GetProtocol returns the current protocol being used
+func (c *Client) GetProtocol() ProtocolType {
+	return c.protocol
+}
+
+// IsJSONRPC returns true if the client is using JSON-RPC protocol
+func (c *Client) IsJSONRPC() bool {
+	return c.protocol == ProtocolJSONRPC
+}
+
+// IsXMLRPC returns true if the client is using XML-RPC protocol
+func (c *Client) IsXMLRPC() bool {
+	return c.protocol == ProtocolXMLRPC
 }
 
 func newTuple(values ...interface{}) []interface{} {

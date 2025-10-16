@@ -16,18 +16,21 @@ func main() {
 			Admin:    "admin",
 			Password: "pass1",
 			URL:      "http://localhost:8069",
+			// Protocol: godoo.ProtocolJSONRPC // This is now the default
 		},
 		"odoo_instance_2": {
 			Database: "db2",
 			Admin:    "admin",
 			Password: "pass2",
 			URL:      "http://localhost:8070",
+			// Protocol: godoo.ProtocolJSONRPC // This is now the default
 		},
 		"failed_instance": {
 			Database: "db3",
 			Admin:    "admin",
 			Password: "wrong_password",
 			URL:      "http://localhost:8071", // Assume this one will fail initially
+			// Protocol: godoo.ProtocolJSONRPC // This is now the default
 		},
 	}
 
@@ -53,7 +56,7 @@ func main() {
 			log.Printf("Failed to ping 'odoo_instance_1': %v", err)
 		} else {
 			version, _ := client1.Version()
-			fmt.Printf("Successfully pinged 'odoo_instance_1'. Server version: %s\n", version.ServerVersion)
+			fmt.Printf("Successfully pinged 'odoo_instance_1'. Server version: %s (Protocol: %s)\n", version.ServerVersion, client1.GetProtocol())
 		}
 	}
 
@@ -68,7 +71,7 @@ func main() {
 	} else {
 		log.Printf("Successfully reconnected to 'failed_instance' in the background! Client is now available.")
 		version, _ := failedClient.Version()
-		fmt.Printf("Successfully pinged 'failed_instance'. Server version: %s\n", version.ServerVersion)
+		fmt.Printf("Successfully pinged 'failed_instance'. Server version: %s (Protocol: %s)\n", version.ServerVersion, failedClient.GetProtocol())
 	}
 
 	// --- Periodically check connections ---
