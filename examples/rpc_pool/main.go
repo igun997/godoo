@@ -16,6 +16,7 @@ func main() {
 			Admin:    "admin",
 			Password: "pass1",
 			URL:      "http://localhost:8069",
+			Timeout:  30, // Timeout in seconds (default: 30)
 			// Protocol: godoo.ProtocolJSONRPC // This is now the default
 		},
 		"odoo_instance_2": {
@@ -23,6 +24,7 @@ func main() {
 			Admin:    "admin",
 			Password: "pass2",
 			URL:      "http://localhost:8070",
+			Timeout:  45, // Custom timeout for slower instance
 			// Protocol: godoo.ProtocolJSONRPC // This is now the default
 		},
 		"failed_instance": {
@@ -30,6 +32,7 @@ func main() {
 			Admin:    "admin",
 			Password: "wrong_password",
 			URL:      "http://localhost:8071", // Assume this one will fail initially
+			Timeout:  30,                      // Timeout in seconds (default: 30)
 			// Protocol: godoo.ProtocolJSONRPC // This is now the default
 		},
 	}

@@ -23,6 +23,7 @@ func main() {
 		URL:      "https://your-odoo-instance.com",
 		Pool:     pool,
 		Protocol: odoo.ProtocolJSONRPC,
+		Timeout:  60, // Custom timeout in seconds (default: 30)
 	})
 	if err != nil {
 		log.Printf("Error creating client: %v", err)
@@ -52,12 +53,12 @@ func main() {
 	// Search and read with criteria
 	criteria := odoo.NewCriteria().Add("active", "=", true)
 	options := odoo.NewOptions().Limit(10).FetchFields("name", "active")
-	
+
 	var units []Unit
 	if err := c.SearchRead("propertek.property.unit", criteria, options, &units); err != nil {
 		log.Printf("error search and read: %v", err)
 	}
-	
+
 	log.Printf("Found %d units", len(units))
 	for i, unit := range units {
 		log.Printf("Unit %d: %s", i+1, unit.Name.Get())

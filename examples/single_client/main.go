@@ -20,6 +20,7 @@ func main() {
 		Password: "your-password",
 		URL:      "https://your-odoo-instance.com",
 		Pool:     pool,
+		Timeout:  30, // Timeout in seconds (default: 30)
 		// Protocol: odoo.ProtocolJSONRPC // This is now the default
 	})
 	if err != nil {

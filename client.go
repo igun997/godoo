@@ -20,7 +20,7 @@ var (
 type ProtocolType string
 
 const (
-	ProtocolXMLRPC ProtocolType = "xmlrpc"
+	ProtocolXMLRPC  ProtocolType = "xmlrpc"
 	ProtocolJSONRPC ProtocolType = "jsonrpc"
 )
 
@@ -32,6 +32,7 @@ type ClientConfig struct {
 	URL      string
 	Pool     *Pool
 	Protocol ProtocolType
+	Timeout  int // Timeout in seconds (default: 30)
 }
 
 func (c *ClientConfig) valid() bool {
@@ -43,13 +44,13 @@ func (c *ClientConfig) valid() bool {
 
 // Client provides high and low level functions to interact with odoo
 type Client struct {
-	common      *xmlrpc.Client
-	object      *xmlrpc.Client
-	jsonrpc     *JSONRPCClient
-	cfg         *ClientConfig
-	uid         int64
-	auth        bool
-	protocol    ProtocolType
+	common   *xmlrpc.Client
+	object   *xmlrpc.Client
+	jsonrpc  *JSONRPCClient
+	cfg      *ClientConfig
+	uid      int64
+	auth     bool
+	protocol ProtocolType
 }
 
 // NewClient creates a new *Client.
@@ -74,7 +75,7 @@ func NewClient(cfg *ClientConfig) (*Client, error) {
 
 	// Initialize JSON-RPC client if needed
 	if protocol == ProtocolJSONRPC {
-		c.jsonrpc = NewJSONRPCClient(cfg.URL, cfg.Pool)
+		c.jsonrpc = NewJSONRPCClient(cfg.URL, cfg.Pool, cfg.Timeout)
 	}
 
 	if err := c.authenticate(); err != nil {
@@ -106,7 +107,7 @@ func (c *Client) Close() {
 // Version get informations about your odoo instance version.
 func (c *Client) Version() (Version, error) {
 	v := Version{}
-	
+
 	if c.protocol == ProtocolJSONRPC {
 		resp, err := c.jsonrpc.Call("call", map[string]interface{}{
 			"service": "common",
@@ -123,7 +124,7 @@ func (c *Client) Version() (Version, error) {
 		}
 		convertFromDynamicToStatic(reply, &v)
 	}
-	
+
 	return v, nil
 }
 
@@ -323,10 +324,10 @@ func (c *Client) ExecuteKw(method, model string, args []interface{}, options *Op
 	if err := c.checkForAuthentication(); err != nil {
 		return nil, err
 	}
-	
+
 	var resp interface{}
 	var err error
-	
+
 	if c.protocol == ProtocolJSONRPC {
 		// Convert Options to map[string]interface{} for JSON-RPC
 		var kwargs map[string]interface{}
@@ -337,7 +338,7 @@ func (c *Client) ExecuteKw(method, model string, args []interface{}, options *Op
 	} else {
 		resp, err = c.objectCall("execute_kw", []interface{}{c.cfg.Database, c.uid, c.cfg.Password, model, method, args, options})
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}

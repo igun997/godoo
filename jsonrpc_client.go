@@ -21,10 +21,10 @@ type JSONRPCRequest struct {
 
 // JSONRPCResponse represents a JSON-RPC 2.0 response
 type JSONRPCResponse struct {
-	JSONRPC string          `json:"jsonrpc"`
-	Result  interface{}     `json:"result,omitempty"`
-	Error   *JSONRPCError   `json:"error,omitempty"`
-	ID      interface{}     `json:"id"`
+	JSONRPC string        `json:"jsonrpc"`
+	Result  interface{}   `json:"result,omitempty"`
+	Error   *JSONRPCError `json:"error,omitempty"`
+	ID      interface{}   `json:"id"`
 }
 
 // JSONRPCError represents a JSON-RPC error
@@ -44,9 +44,9 @@ type JSONRPCClient struct {
 }
 
 // NewJSONRPCClient creates a new JSON-RPC client
-func NewJSONRPCClient(baseURL string, pool *Pool) *JSONRPCClient {
+func NewJSONRPCClient(baseURL string, pool *Pool, timeoutSeconds int) *JSONRPCClient {
 	transport := &http.Transport{}
-	
+
 	if pool != nil {
 		transport = &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -62,11 +62,16 @@ func NewJSONRPCClient(baseURL string, pool *Pool) *JSONRPCClient {
 		}
 	}
 
+	// Default timeout to 30 seconds if not specified or invalid
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = 30
+	}
+
 	return &JSONRPCClient{
 		baseURL: baseURL,
 		httpClient: &http.Client{
 			Transport: transport,
-			Timeout:   30 * time.Second,
+			Timeout:   time.Duration(timeoutSeconds) * time.Second,
 		},
 		context: make(map[string]interface{}),
 	}
@@ -95,7 +100,6 @@ func (c *JSONRPCClient) Call(method string, params interface{}) (*JSONRPCRespons
 		return nil, fmt.Errorf("marshaling request: %w", err)
 	}
 
-
 	resp, err := c.httpClient.Post(c.baseURL+"/jsonrpc", "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("making request: %w", err)
@@ -106,7 +110,6 @@ func (c *JSONRPCClient) Call(method string, params interface{}) (*JSONRPCRespons
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
-
 
 	var rpcResp JSONRPCResponse
 	if err := json.Unmarshal(body, &rpcResp); err != nil {
@@ -147,7 +150,6 @@ func (c *JSONRPCClient) Authenticate(db, login, password string) error {
 		return fmt.Errorf("authentication call failed: %w", err)
 	}
 
-
 	result, ok := resp.Result.(map[string]interface{})
 	if !ok {
 		// For JSON-RPC authentication, the result might be directly the UID (int64)
@@ -178,12 +180,12 @@ func (c *JSONRPCClient) Authenticate(db, login, password string) error {
 	} else {
 		return fmt.Errorf("uid not found in response")
 	}
-	
+
 	// Set up context for subsequent calls
 	c.context = map[string]interface{}{
-		"lang":   "en_US",
-		"tz":     "UTC",
-		"uid":    c.uid,
+		"lang": "en_US",
+		"tz":   "UTC",
+		"uid":  c.uid,
 	}
 
 	return nil

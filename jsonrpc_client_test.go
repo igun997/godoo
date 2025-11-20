@@ -26,26 +26,25 @@ func TestProtocolType(t *testing.T) {
 func TestNewJSONRPCClient(t *testing.T) {
 	baseURL := "https://test.odoo.com"
 	pool := NewPool(5, 2, 30)
-	
-	client := NewJSONRPCClient(baseURL, pool)
-	
+
+	client := NewJSONRPCClient(baseURL, pool, 30)
+
 	if client.baseURL != baseURL {
 		t.Errorf("Expected baseURL %s, got %s", baseURL, client.baseURL)
 	}
-	
+
 	if client.httpClient == nil {
 		t.Error("Expected httpClient to be initialized")
 	}
-	
+
 	if client.sessionID != "" {
 		t.Error("Expected sessionID to be empty initially")
 	}
-	
+
 	if client.uid != 0 {
 		t.Error("Expected uid to be 0 initially")
 	}
 }
-
 
 func TestJSONRPCRequest(t *testing.T) {
 	request := JSONRPCRequest{
@@ -54,15 +53,15 @@ func TestJSONRPCRequest(t *testing.T) {
 		Params:  map[string]interface{}{"key": "value"},
 		ID:      1,
 	}
-	
+
 	if request.JSONRPC != "2.0" {
 		t.Errorf("Expected JSONRPC version 2.0, got %s", request.JSONRPC)
 	}
-	
+
 	if request.Method != "test_method" {
 		t.Errorf("Expected method test_method, got %s", request.Method)
 	}
-	
+
 	if request.ID != 1 {
 		t.Errorf("Expected ID 1, got %v", request.ID)
 	}
@@ -74,15 +73,15 @@ func TestJSONRPCResponse(t *testing.T) {
 		Result:  map[string]interface{}{"result": "success"},
 		ID:      1,
 	}
-	
+
 	if response.JSONRPC != "2.0" {
 		t.Errorf("Expected JSONRPC version 2.0, got %s", response.JSONRPC)
 	}
-	
+
 	if response.Result.(map[string]interface{})["result"] != "success" {
 		t.Error("Expected result to be success")
 	}
-	
+
 	if response.ID != 1 {
 		t.Errorf("Expected ID 1, got %v", response.ID)
 	}
